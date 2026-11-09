@@ -147,8 +147,11 @@ class DevcontainerProjection(unittest.TestCase):
 
     def test_projected_values_match_mios(self):
         mine, mios = _jsonc(ROOT / ".devcontainer" / "devcontainer.json"), self._mios()
-        for key in ("forwardPorts",):
+        for key in ("forwardPorts", "remoteUser", "remoteEnv", "hostRequirements"):
             self.assertEqual(mine.get(key), mios.get(key), f"devcontainer.json {key} differs from MiOS's")
+        self.assertEqual(((mine.get("build") or {}).get("args") or {}).get("MIOS_IDENTITY_USERNAME"),
+                         ((mios.get("build") or {}).get("args") or {}).get("MIOS_IDENTITY_USERNAME"),
+                         "devcontainer.json build.args.MIOS_IDENTITY_USERNAME differs from MiOS's")
         self.assertEqual((mine.get("containerEnv") or {}).get("MIOS_AI_ENDPOINT"),
                          (mios.get("containerEnv") or {}).get("MIOS_AI_ENDPOINT"),
                          "devcontainer.json containerEnv.MIOS_AI_ENDPOINT differs from MiOS's")

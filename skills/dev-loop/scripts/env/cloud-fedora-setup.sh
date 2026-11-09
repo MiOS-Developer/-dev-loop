@@ -267,8 +267,10 @@ ensure_podman() {
     command -v podman >/dev/null 2>&1 && return 0
     command -v apt-get >/dev/null 2>&1 || { log "podman is not installed and there is no apt-get to install it"; return 0; }
     log "installing podman (MiOS is Podman-native)"
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -q podman >>/var/log/dev-loop-podman-install.log 2>&1 ||
-        log "podman install failed (see /var/log/dev-loop-podman-install.log)"
+    _plog=/var/log/dev-loop-podman-install.log
+    [ -w /var/log ] || { mkdir -p "$BUILD_CTX" 2>/dev/null; _plog="$BUILD_CTX/dev-loop-podman-install.log"; }
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -q podman >>"$_plog" 2>&1 ||
+        log "podman install failed (see $_plog)"
 }
 
 # --- 1. the Docker daemon (docker runtime only) ----------------------------------

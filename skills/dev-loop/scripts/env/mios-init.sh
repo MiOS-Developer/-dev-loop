@@ -248,6 +248,8 @@ is_mios() {
         { IS_MIOS_WHY="ignored: $1 has no origin remote"; return 1; }
     case "$_im_url" in
         "$MIOS_ORIGIN"|"$MIOS_ORIGIN.git"|git@github.com:mios-dev/MiOS|git@github.com:mios-dev/MiOS.git) return 0 ;;
+        https://github.com/MiOS-Developer/MiOS|https://github.com/MiOS-Developer/MiOS.git|git@github.com:MiOS-Developer/MiOS|git@github.com:MiOS-Developer/MiOS.git) return 0 ;;
+        https://github.com/mios-developer/MiOS|https://github.com/mios-developer/MiOS.git|git@github.com:mios-developer/MiOS|git@github.com:mios-developer/MiOS.git) return 0 ;;
         "$GH_BASE/MiOS"|"$GH_BASE/MiOS.git") return 0 ;;
     esac
     IS_MIOS_WHY="ignored: origin is $(redact_url "$_im_url") (not the MiOS repo)"
@@ -476,6 +478,10 @@ packages_fedora() {
     # continuation.
     cfj=$(sed -e :a -e '/\\$/N; s/\\\n//; ta' "$cf")
     npm_line=$(printf '%s\n' "$cfj" | grep -m 1 -E '(^|[[:space:]])npm install -g[[:space:]]')
+    if [ -z "$npm_line" ] && [ -z "${MIOS_CONTAINERFILE:-}" ] && grep -q '^FROM \${MIOS_IMAGE_REF}' "$cf" 2>/dev/null; then
+        _npm_pkgs=$(awk '/^\[\[mcp\.agent_cli\.tools\]\]/{k="";p=""} /^kind[[:space:]]*=[[:space:]]*"npm"/{k="npm"} /^package[[:space:]]*=/{gsub(/.*=[[:space:]]*"|".*/,"");p=$0} k=="npm" && p!=""{print p; k=""; p=""}' "$toml" 2>/dev/null | tr '\n' ' ')
+        [ -n "$_npm_pkgs" ] && npm_line="npm install -g $_npm_pkgs"
+    fi
     [ -n "$npm_line" ] ||
         { record packages failed 1 "no 'npm install -g' line in $cf (MIOS_CONTAINERFILE): the CLI set is read from the Containerfile, never copied"; return; }
     clis=""
@@ -485,8 +491,14 @@ packages_fedora() {
     [ -n "$clis" ] || { record packages failed 1 "the 'npm install -g' line in $cf names no package"; return; }
     reqs="${MIOS_REQUIREMENTS:-}"
     if [ -z "$reqs" ]; then
-        reqs_from_containerfile "$cfj" ||
-            { record packages failed 1 "no 'pip install -r <file>' in $cf (MIOS_CONTAINERFILE) that maps to a file of $MIOS_DIR${REQS_WHY:+ ($REQS_WHY)}: the venv's requirements file is read from the Containerfile (or MIOS_REQUIREMENTS)"; return; }
+        if ! reqs_from_containerfile "$cfj"; then
+            if [ -z "${MIOS_CONTAINERFILE:-}" ] && grep -q '^FROM \${MIOS_IMAGE_REF}' "$cf" 2>/dev/null && [ -f "$MIOS_DIR/usr/lib/mios/agent-pipe/requirements.txt" ]; then
+                REQS_FILE="$MIOS_DIR/usr/lib/mios/agent-pipe/requirements.txt"
+            else
+                record packages failed 1 "no 'pip install -r <file>' in $cf (MIOS_CONTAINERFILE) that maps to a file of $MIOS_DIR${REQS_WHY:+ ($REQS_WHY)}: the venv's requirements file is read from the Containerfile (or MIOS_REQUIREMENTS)"
+                return
+            fi
+        fi
         reqs=$REQS_FILE
     fi
     [ -f "$reqs" ] || { record packages failed 1 "requirements.txt not found: $reqs"; return; }

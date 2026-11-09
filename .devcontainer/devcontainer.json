@@ -2,7 +2,10 @@
   "name": "dev-loop (MiOS devcontainer)",
   "build": {
     "dockerfile": "Containerfile",
-    "context": ".."
+    "context": "..",
+    "args": {
+      "MIOS_IDENTITY_USERNAME": "user"
+    }
   },
   "init": true,
   "containerEnv": {
@@ -11,9 +14,13 @@
     "DEVLOOP_HARNESS": "embedded",
     "PYTHONUNBUFFERED": "1"
   },
+  "remoteEnv": {
+    "PATH": "/opt/mios/bin:${containerEnv:PATH}",
+    "MIOS_NATIVE_BIN_DIR": "/opt/mios/bin"
+  },
   "features": {
     "ghcr.io/devcontainers/features/common-utils:latest": {
-      "username": "mios-dev",
+      "username": "user",
       "userUid": "1000",
       "userGid": "1000",
       "upgradePackages": false
@@ -223,7 +230,7 @@
       }
     }
   },
-  "remoteUser": "mios-dev",
+  "remoteUser": "user",
   "forwardPorts": [
     8900,
     8700,
@@ -236,8 +243,8 @@
   "postStartCommand": "bash -c '. /workspaces/-dev-loop/skills/dev-loop/scripts/env/agy-keyring.sh 2>/dev/null || true; if [ -d /workspaces/MiOS ]; then cd /workspaces/MiOS && bash .devcontainer/boot-mios-systems.sh start; else echo \"[devcontainer:post-start] /workspaces/MiOS is absent: MiOS lifecycle skipped (postCreateCommand clones it)\"; fi'",
   "postAttachCommand": "code --execute-command workbench.action.closeSidebar",
   "hostRequirements": {
-    "cpus": 4,
-    "memory": "16gb",
-    "storage": "32gb"
+    "cpus": 16,
+    "memory": "64gb",
+    "storage": "128gb"
   }
 }

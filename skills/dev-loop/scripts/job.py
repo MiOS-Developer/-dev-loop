@@ -166,7 +166,7 @@ def _session_pids(sid: int) -> list[int]:
             continue
         try:
             fields = (d / "stat").read_text().rsplit(")", 1)[1].split()
-            if int(fields[3]) == sid:
+            if fields and fields[0] != "Z" and int(fields[3]) == sid:
                 out.append(int(d.name))
         except (OSError, IndexError, ValueError):
             continue
