@@ -1,152 +1,75 @@
-# This file is the one MiOS dev image. It is mirrored byte-identical into
-# mios-bootstrap and -dev-loop (.devcontainer/Containerfile) and gated; edit it
-# HERE only. Gates: mios.toml [bootstrap.sync].mirror_files through
-# tools/sync-bootstrap.py --check (Law 15) for mios-bootstrap, and
-# tests/test_devcontainer_mirror.py in -dev-loop.
-#
-# The same bytes build from ANY repo root. The build context is consulted once:
-# when it is a MiOS checkout (usr/share/mios/mios.toml, automation/lib/packages.sh
-# and .devcontainer/fetch-installer.sh present) the SSOT is staged from it;
-# otherwise MiOS is shallow-cloned at MIOS_REF and staged from the clone. Every
-# later step reads the staged copy, so the mios-bootstrap and -dev-loop
-# devcontainers, a Codespaces prebuild and the hosted cloud-session projection
-# produce the same image as MiOS's own devcontainer, with no sibling checkout
-# and no initializeCommand -- the same image when that checkout is at MIOS_REF:
-# a MiOS branch's own devcontainer builds from the branch while the mirrors
-# build main, so the two can differ until the branch merges. The staged copy is
-# removed before the image is done: the live source of a running devcontainer
-# is /workspaces/MiOS.
-#
-# The dnf package set is NOT listed here: it is [packages.devcontainer] in
-# usr/share/mios/mios.toml, resolved by the canonical automation/lib/packages.sh.
-# [image].machine_os_mirror: the podman machine OS MiOS-DEV boots, container
-# images only (Codespaces' containerd cannot read the upstream disk-image entries).
-FROM ghcr.io/mios-dev/machine-os:6.1
+# AI-hint: The MiOS devcontainer is the MiOS image plus account and container wiring.
+# The OS pipeline owns packages, toolchains and payloads. This stage materializes
+# boot-time account/tmpfiles state before an editor or lifecycle command attaches.
+# Mirrored byte-identical into mios-bootstrap and -dev-loop; edit this source only.
+ARG MIOS_IMAGE_REF=ghcr.io/mios-dev/mios:latest
+FROM ${MIOS_IMAGE_REF}
 
-# An ostree layout: /home, /root, /opt, /srv, /mnt and /usr/local link into /var,
-# which the image's own tmpfiles.d fills at boot. A container never boots.
-RUN systemd-tmpfiles --create --prefix=/var/home --prefix=/var/roothome --prefix=/var/opt \
-        --prefix=/var/srv --prefix=/var/mnt --prefix=/var/usrlocal
-
-# Where the SSOT comes from when the build context is not a MiOS checkout.
-ARG MIOS_REPO=https://github.com/mios-dev/MiOS.git
-ARG MIOS_REF=main
-
-# Stage the SSOT surfaces this image reads. BuildKit/buildah bind mount of the
-# build context: only the files listed here reach a layer, and a required one
-# that is missing fails the build at this step instead of later and vaguer.
-RUN --mount=type=bind,source=.,target=/ctx,ro \
-    set -euo pipefail; \
-    stage=/usr/src/mios-ssot; src=/ctx; \
-    if [ -f /ctx/usr/share/mios/mios.toml ] && [ -f /ctx/automation/lib/packages.sh ] \
-       && [ -f /ctx/.devcontainer/fetch-installer.sh ]; then \
-        echo "[devcontainer] SSOT: the build context is a MiOS checkout"; \
-    else \
-        echo "[devcontainer] SSOT: the build context is not a MiOS checkout; cloning ${MIOS_REPO} (${MIOS_REF})"; \
-        dnf install -y --setopt=install_weak_deps=False git-core; \
-        dnf clean all; \
-        src=/tmp/mios-src; \
-        git clone --depth 1 --branch "${MIOS_REF}" "${MIOS_REPO}" "$src" \
-            || { echo "[devcontainer] ERROR: clone of ${MIOS_REPO} (${MIOS_REF}) failed" >&2; exit 1; }; \
+# The checkout projects this from [identity].username together with remoteUser.
+# Direct image builds default to the baked image's canonical identity.
+ARG MIOS_IDENTITY_USERNAME
+USER 0
+RUN set -euo pipefail; \
+    for helper in /usr/libexec/mios/mios-toml-get /usr/libexec/mios/mios-subuid-alloc; do \
+        [ -x "$helper" ] || { echo "[devcontainer] ERROR: MiOS base image lacks required account helper $helper; build and publish the current full MiOS image before rebuilding this devcontainer" >&2; exit 1; }; \
+    done; \
+    image_user="$(env -u MIOS_IDENTITY_USERNAME /usr/libexec/mios/mios-toml-get identity username)"; \
+    user="${MIOS_IDENTITY_USERNAME:-$image_user}"; renamed_from=""; \
+    case "$user" in ''|root|[0-9-]*|*[!a-z0-9_-]*) \
+        echo "[devcontainer] ERROR: canonical identity must be a non-root Linux user name" >&2; exit 1 ;; esac; \
+    systemd-tmpfiles --create --prefix=/var/home --prefix=/var/roothome --prefix=/var/opt \
+        --prefix=/var/srv --prefix=/var/mnt --prefix=/var/usrlocal; \
+    if ! getent passwd "$user" >/dev/null; then systemd-sysusers; fi; \
+    if ! getent passwd "$user" >/dev/null; then \
+        owner="$(getent passwd 1000 | cut -d: -f1 || true)"; \
+        if [ -n "$owner" ]; then \
+            [ "$owner" = "$image_user" ] && [ "$owner" != root ] \
+                || { echo "[devcontainer] ERROR: UID 1000 belongs to an unrelated account; rebuild the base image with the canonical identity" >&2; exit 1; }; \
+            usermod --login "$user" --home "/var/home/$user" --move-home "$owner"; renamed_from="$owner"; \
+            group="$(id -gn "$user")"; \
+            if [ "$group" = "$owner" ] && ! getent group "$user" >/dev/null; then \
+                groupmod --new-name "$user" "$group"; \
+            fi; \
+        else \
+            shell="$(/usr/libexec/mios/mios-toml-get identity shell)"; \
+            [ -x "$shell" ] || { echo "[devcontainer] ERROR: canonical login shell is unavailable in the base image" >&2; exit 1; }; \
+            printf 'u %s 1000 "MiOS developer" /var/home/%s %s\n' "$user" "$user" "$shell" | systemd-sysusers -; \
+        fi; \
     fi; \
-    install -d -m 0755 "$stage"; \
-    for f in usr/share/mios/mios.toml automation/lib usr/lib/mios/agent-pipe/requirements.txt \
-             .devcontainer/install-root-overlay.sh .devcontainer/mios-agent-pipe-dev \
-             .devcontainer/fetch-installer.sh usr/libexec/mios/mios-vscode-custom-css \
-             usr/libexec/mios/mios-toml-get usr/lib/mios/mios_toml.py \
-             usr/share/mios/themes/code-server-terminal.css; do \
-        [ -e "$src/$f" ] || { echo "[devcontainer] ERROR: $f is missing from the MiOS source" >&2; exit 1; }; \
-        install -d -m 0755 "$stage/$(dirname "$f")"; cp -a "$src/$f" "$stage/$f"; \
+    entry="$(getent passwd "$user")" \
+        || { echo "[devcontainer] ERROR: canonical account provisioning failed" >&2; exit 1; }; \
+    [ "$(id -u "$user")" = 1000 ] \
+        || { echo "[devcontainer] ERROR: canonical developer account must own UID 1000" >&2; exit 1; }; \
+    account_home="$(printf '%s\n' "$entry" | cut -d: -f6)"; \
+    case "$account_home" in /home/*|/var/home/*) ;; *) \
+        echo "[devcontainer] ERROR: canonical developer home is invalid" >&2; exit 1 ;; esac; \
+    if [ ! -d "$account_home" ]; then \
+        install -d -m 0700 -o "$user" -g "$(id -gn "$user")" "$account_home"; \
+        cp -a /etc/skel/. "$account_home/"; \
+        chown -R "$user:$(id -gn "$user")" "$account_home"; \
+    fi; \
+    sub_line="$(/usr/libexec/mios/mios-subuid-alloc --user "$user" --uid 1000)"; \
+    for subfile in /etc/subuid /etc/subgid; do \
+        touch "$subfile"; \
+        if [ -n "$renamed_from" ]; then \
+            awk -F: -v old="$renamed_from" -v new="$user" 'BEGIN { OFS=":" } $1==old { $1=new } { print }' "$subfile" > "$subfile.new"; \
+            chmod 0644 "$subfile.new"; mv -f "$subfile.new" "$subfile"; \
+        fi; \
+        if ! awk -F: -v user="$user" '$1==user || $1=="1000" { found=1 } END { exit !found }' "$subfile"; then \
+            printf '%s\n' "$sub_line" >> "$subfile"; \
+        fi; \
     done; \
-    for f in VERSION tools/lib/userenv.sh usr/lib/mios/log.sh; do \
-        [ -f "$src/$f" ] || continue; \
-        install -d -m 0755 "$stage/$(dirname "$f")"; cp -a "$src/$f" "$stage/$f"; \
-    done; \
-    rm -rf /tmp/mios-src
+    /usr/libexec/mios/mios-subuid-alloc --check; \
+    chage -I -1 -E -1 -M -1 -d -1 "$user"; \
+    install -d -m 0755 /etc/sudoers.d; \
+    install -d -m 0755 -o "$user" -g "$(id -gn "$user")" /workspaces; \
+    printf '%s ALL=(ALL:ALL) NOPASSWD: ALL\n' "$user" > /etc/sudoers.d/90-mios-devcontainer; \
+    chmod 0440 /etc/sudoers.d/90-mios-devcontainer; \
+    visudo -cf /etc/sudoers.d/90-mios-devcontainer; \
+    sudo -n -l -U "$user" >/dev/null; \
+    setpriv --reuid "$user" --regid "$(id -gn "$user")" --init-groups -- /usr/bin/true
 
-# get_packages_strict fails the build on an empty or missing section rather
-# than installing nothing.
-RUN set -euo pipefail; \
-    export MIOS_TOML=/usr/src/mios-ssot/usr/share/mios/mios.toml; \
-    . /usr/src/mios-ssot/automation/lib/packages.sh; \
-    pkgs="$(get_packages_strict devcontainer)"; \
-    dnf install -y --setopt=install_weak_deps=False $pkgs; \
-    dnf clean all
-
-# The native catalog links static musl binaries with rust-lld ([build.native.linux]).
-# Fedora's rust ships neither the musl std nor rust-lld, and its rustup package is
-# only rustup-init, so without this step automation/55-native-build.sh cannot run
-# here. Initialise rustup system-wide on the [build.toolchain] channel with this
-# machine's [build.native.linux] target; the repo's rust-toolchain.toml then
-# resolves to it.
-ENV RUSTUP_HOME=/usr/local/rustup \
-    CARGO_HOME=/usr/local/cargo \
-    PATH=/usr/local/cargo/bin:${PATH}
-RUN set -euo pipefail; \
-    stage=/usr/src/mios-ssot; export MIOS_TOML_ROOT="$stage"; \
-    get() { python3 "$stage/usr/libexec/mios/mios-toml-get" --vendor "$@"; }; \
-    channel="$(get build.toolchain channel)"; target="$(get build.native.linux.targets "$(uname -m)")"; \
-    linker="$(get build.native.linux linker)"; \
-    [ -n "$channel" ] && [ -n "$target" ] && [ -n "$linker" ] \
-        || { echo "[devcontainer] ERROR: [build.toolchain].channel, [build.native.linux].targets.$(uname -m) or .linker is empty" >&2; exit 1; }; \
-    set --; for c in $(get build.toolchain components | python3 -c 'import json,sys; print(" ".join(json.load(sys.stdin)))'); do set -- "$@" -c "$c"; done; \
-    rustup-init -y --no-modify-path --profile minimal --default-toolchain "$channel" --target "$target" "$@"; \
-    libdir="$(rustc --print target-libdir --target "$target")"; \
-    ls "$libdir"/libstd-*.rlib >/dev/null 2>&1 \
-        || { echo "[devcontainer] ERROR: no ${target} standard library under ${libdir}" >&2; exit 1; }; \
-    host="$(rustc -vV | sed -n 's/^host: //p')"; \
-    test -x "$(rustc --print sysroot)/lib/rustlib/${host}/bin/${linker}" \
-        || { echo "[devcontainer] ERROR: linker ${linker} missing from the ${channel} toolchain" >&2; exit 1; }; \
-    chmod -R a+rwX "$RUSTUP_HOME" "$CARGO_HOME"
-
-RUN npm install -g @anthropic-ai/claude-code @github/copilot @google/gemini-cli
-
-RUN install -d -m 0755 /usr/lib/mios/agents \
-    && python3.11 -m venv /usr/lib/mios/agents/.venv \
-    && /usr/lib/mios/agents/.venv/bin/pip install --no-cache-dir \
-         -r /usr/src/mios-ssot/usr/lib/mios/agent-pipe/requirements.txt
-
-# code-server pinned by [image.sidecars].code_server; stylesheet and both workbench.js patches baked, a moved anchor fails the build.
-RUN set -euo pipefail; \
-    stage=/usr/src/mios-ssot; export MIOS_TOML_ROOT="$stage"; \
-    get() { python3 "$stage/usr/libexec/mios/mios-toml-get" --vendor "$@"; }; \
-    img="$(get image.sidecars code_server)"; v="${img##*:}"; \
-    case "$img:$v" in *:*:latest|*:|"$v:$v") echo "[devcontainer] ERROR: [image.sidecars].code_server '$img' has no pinned tag" >&2; exit 1;; esac; \
-    case "$(uname -m)" in x86_64) arch=amd64;; aarch64) arch=arm64;; *) echo "[devcontainer] ERROR: no code-server RPM for $(uname -m)" >&2; exit 1;; esac; \
-    dnf install -y "https://github.com/coder/code-server/releases/download/v${v}/code-server-${v}-${arch}.rpm"; \
-    dnf clean all; \
-    sb="$(get theme.edge code_server_scrollbar_px)"; pm="$(get theme.edge code_server_perimeter_px)"; \
-    set -- --target /usr/lib/code-server/lib/vscode/out/vs/code/browser/workbench/workbench.html \
-        --css "$stage/usr/share/mios/themes/code-server-terminal.css" --scrollbar-px "$sb" --perimeter-px "$pm"; \
-    python3 "$stage/usr/libexec/mios/mios-vscode-custom-css" patch "$@"; \
-    python3 "$stage/usr/libexec/mios/mios-vscode-custom-css" verify "$@"
-
-RUN useradd -m -u 1000 -s /usr/bin/zsh mios-dev \
-    && echo "mios-dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/mios-dev \
-    && chmod 0440 /etc/sudoers.d/mios-dev \
-    && visudo -cf /etc/sudoers.d/mios-dev
-
-# The helpers come from the staged source, so they are the same files whichever
-# way the SSOT arrived. The staged copy is dropped here, after its last reader.
-RUN install -m 0755 /usr/src/mios-ssot/.devcontainer/install-root-overlay.sh /usr/local/bin/mios-root-overlay \
-    && install -m 0755 /usr/src/mios-ssot/.devcontainer/mios-agent-pipe-dev /usr/local/bin/mios-agent-pipe-dev \
-    && install -m 0755 /usr/src/mios-ssot/.devcontainer/fetch-installer.sh /usr/local/bin/mios-fetch-installer \
-    && rm -rf /usr/src/mios-ssot
-
-# The Antigravity CLI is part of the environment, so a failed install fails the
-# build instead of shipping an image that silently lacks it. The fetch helper
-# decodes the CDN's unsolicited gzip and refuses a non-script payload.
-USER mios-dev
-RUN set -eu; tmp="$(mktemp -d)"; \
-    mios-fetch-installer https://antigravity.google/cli/install.sh "$tmp/install.sh"; \
-    bash "$tmp/install.sh" >/dev/null; \
-    /home/mios-dev/.local/bin/agy --version; \
-    rm -rf "$tmp"
-
-ENV PATH="/home/mios-dev/.local/bin:${PATH}"
 ENV MIOS_DEVCONTAINER=1
-ENV MIOS_VERSION=0.3.0
-ENV MIOS_AGENT_PIPE_PYTHON=/usr/lib/mios/agents/.venv/bin/python
-
-WORKDIR /workspaces/MiOS
-CMD ["/usr/bin/zsh"]
+USER 1000
+WORKDIR /workspaces
+CMD ["/bin/bash", "-l"]
