@@ -124,7 +124,7 @@ Optional, same place:
 | `FEDORA_RUNTIME` | `auto` | `auto`, `podman` or `docker`. MiOS is Podman-native: `auto` takes podman when it is installed and Docker only where it is the sole runtime, which is this cloud VM. An explicit runtime that is missing logs an error and builds nothing. |
 | `FEDORA_SETUP_BUDGET_S` | `0` (never) | Defers the devcontainer lifecycle prebuild (`miosd`, the root overlay, `/opt/mios/bin`) once this many seconds of the setup have elapsed, so a slow run stays inside the platform's roughly 5-minute snapshot budget. A deferred prebuild is applied later, inside a session, with `bash /opt/dev-loop-fedora/cloud-fedora-setup.sh --lifecycle`. A full run measured 452 s; start with `240` if the environment cache stops building. |
 | `FEDORA_DEVCONTAINER_REF` | the repo's default branch | Branch or tag of the repo to clone. |
-| `FEDORA_EXEC_USER` | `root` | The user container commands run as. `mios-dev` matches the devcontainer's `remoteUser`. |
+| `FEDORA_EXEC_USER` | `root` | The user container commands run as. The image's own account (MiOS: `[identity].username`, `user`) matches the devcontainer's. |
 | `FEDORA_PROVISION_HOST` | `1` | `0` skips provisioning the VM itself (`agy`, keyring, headless grants, dev-loop skill), which otherwise runs first. |
 | `FEDORA_REBUILD` | `0` | `1` forces an image rebuild even when one is cached. |
 

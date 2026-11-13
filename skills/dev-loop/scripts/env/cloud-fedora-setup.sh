@@ -77,15 +77,15 @@
 #       FEDORA_DEVCONTAINER_NAME  wrapper/container name   (default: <repo>-dev)
 #       FEDORA_EXEC_USER          user commands run as     (default: root, since
 #                                 the bind-mounted workspace is root-owned here;
-#                                 set it to the image's own user, e.g. mios-dev,
-#                                 to match the devcontainer's remoteUser)
+#                                 set it to the image's own user, e.g. user,
+#                                 to match the account the devcontainer attaches as)
 #   <name>:base is built by the Dev Containers CLI from the devcontainer.json
 #   beside the Containerfile (Containerfile + features, as VS Code/Codespaces
 #   build it; FEDORA_DEVCONTAINER_CLI=0 builds the Containerfile alone); then the lifecycle commands of
 #   the devcontainer.json beside it (onCreate/updateContent/postCreate/
-#   postStart, remoteUser, workspaceFolder -- read, never restated) run once in
-#   a throwaway container and are committed as <name>:latest, the image the
-#   wrapper runs. A failed lifecycle degrades to :base and records why in
+#   postStart, workspaceFolder, and the user the CLI would attach as -- read,
+#   never restated) run once in a throwaway container and are committed as
+#   <name>:latest, the image the wrapper runs. A failed lifecycle degrades to :base and records why in
 #   $BUILD_CTX/<name>.lifecycle.
 #       FEDORA_DEVCONTAINER_JSON       devcontainer.json path (default: beside the Containerfile)
 #       FEDORA_DEVCONTAINER_LIFECYCLE  0 skips the prebuild
@@ -681,7 +681,12 @@ run_lifecycle() {
         "$RT" tag "$DC_BASE" "$FEDORA_IMAGE"
         return
     fi
-    user=$(dc_json_get remoteUser); user=${user:-root}
+    # The Dev Containers CLI's rule: remoteUser, else containerUser, else the
+    # image's own USER. MiOS names neither, so its image's account is used.
+    user=$(dc_json_get remoteUser)
+    [ -n "$user" ] || user=$(dc_json_get containerUser)
+    [ -n "$user" ] || user=$("$RT" image inspect --format '{{.Config.User}}' "$DC_BASE" 2>/dev/null)
+    user=${user:-root}
     wsf=$(dc_json_get workspaceFolder); wsf=${wsf:-/workspaces/$(basename "${DC_REPO%/}" .git)}
     cmds=""
     for k in onCreateCommand updateContentCommand postCreateCommand postStartCommand; do
