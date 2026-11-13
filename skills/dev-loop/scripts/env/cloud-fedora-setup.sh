@@ -685,7 +685,16 @@ run_lifecycle() {
     # image's own USER. MiOS names neither, so its image's account is used.
     user=$(dc_json_get remoteUser)
     [ -n "$user" ] || user=$(dc_json_get containerUser)
-    [ -n "$user" ] || user=$("$RT" image inspect --format '{{.Config.User}}' "$DC_BASE" 2>/dev/null)
+    if [ -z "$user" ]; then
+        # An image with no USER runs as root, but a failed inspect is not an empty
+        # USER: defer before any run, chown or exec rather than guess root.
+        if ! user=$("$RT" image inspect --format '{{.Config.User}}' "$DC_BASE" 2>>/var/log/dev-loop-fedora-build.log); then
+            echo "deferred: could not read the image user of $DC_BASE; run: bash $SCRIPT_CACHE --lifecycle" > "$status_file"
+            "$RT" tag "$DC_BASE" "$FEDORA_IMAGE"
+            log "lifecycle: $(cat "$status_file")"
+            return
+        fi
+    fi
     user=${user:-root}
     wsf=$(dc_json_get workspaceFolder); wsf=${wsf:-/workspaces/$(basename "${DC_REPO%/}" .git)}
     cmds=""

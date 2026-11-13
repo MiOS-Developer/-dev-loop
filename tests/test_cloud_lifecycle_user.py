@@ -17,6 +17,9 @@ Controls:
             (test_image_user_is_the_default)
   negative  restoring `user=$(dc_json_get remoteUser); user=${user:-root}` makes
             test_image_user_is_the_default fail: the lifecycle runs as root.
+  negative  an `image inspect` that fails is not an empty USER: the prebuild
+            defers with no run, chown or exec (test_failed_inspect_defers_...);
+            discarding the inspect status makes that test fail.
 
 Run: python3 tests/test_cloud_lifecycle_user.py
 """
@@ -39,7 +42,9 @@ printf '%s\n' "$*" >> "$FAKE_CALLS"
 case "$1 $2" in
     "image inspect")
         case "$*" in
-            *Config.User*) printf '%s\n' "$FAKE_IMAGE_USER" ;;
+            *Config.User*)
+                [ "$FAKE_INSPECT_FAIL" = 1 ] && { echo "Error: inspect failed" >&2; exit 125; }
+                printf '%s\n' "$FAKE_IMAGE_USER" ;;
         esac
         exit 0 ;;
 esac
@@ -59,7 +64,8 @@ def _function(source: str, name: str) -> str:
 
 
 class LifecycleUser(unittest.TestCase):
-    def _run(self, config: dict, image_user: str = "user") -> tuple[subprocess.CompletedProcess, list[str]]:
+    def _run(self, config: dict, image_user: str = "user", inspect_fails: bool = False
+             ) -> tuple[subprocess.CompletedProcess, list[str], str]:
         source = SCRIPT.read_text()
         functions = _function(source, "dc_json_get") + "\n" + _function(source, "run_lifecycle")
         with tempfile.TemporaryDirectory(prefix="cloud-lifecycle-user-") as tmp:
@@ -72,21 +78,23 @@ class LifecycleUser(unittest.TestCase):
             runtime.write_text(RUNTIME)
             runtime.chmod(0o755)
             calls = tmp_path / "calls"
-            env = dict(os.environ, FAKE_CALLS=str(calls), FAKE_IMAGE_USER=image_user)
+            env = dict(os.environ, FAKE_CALLS=str(calls), FAKE_IMAGE_USER=image_user,
+                       FAKE_INSPECT_FAIL="1" if inspect_fails else "0")
             harness = "\n".join([
                 "set -u",
                 f'RT="{runtime}"; BUILD_CTX="{tmp}"; DC_NAME=fixture; DC_SRC="{src}"',
                 'DC_JSON=.devcontainer/devcontainer.json; DC_BASE=fixture:base; FEDORA_IMAGE=fixture:latest',
                 'DC_REPO=https://example.invalid/MiOS.git; LIFECYCLE_ONLY=0; SETUP_T0=0; SCRIPT_CACHE=unused',
                 'log() { :; }',
-                'chown() { :; }',
+                'chown() { printf "chown %s\\n" "$*" >> "$FAKE_CALLS"; }',
                 functions,
                 "run_lifecycle",
             ])
             # The script is #!/usr/bin/env bash (it reads $SECONDS).
             result = subprocess.run(["bash", "-c", harness], env=env, capture_output=True, text=True)
             lines = calls.read_text().splitlines() if calls.exists() else []
-            return result, lines
+            status = tmp_path / "fixture.lifecycle"
+            return result, lines, status.read_text() if status.exists() else ""
 
     def _exec_user(self, lines: list[str]) -> str:
         execs = [line.split() for line in lines if line.startswith("exec ")]
@@ -94,7 +102,7 @@ class LifecycleUser(unittest.TestCase):
         return execs[0][execs[0].index("-u") + 1]
 
     def test_image_user_is_the_default(self):
-        result, lines = self._run({"postCreateCommand": "true"}, image_user="user")
+        result, lines, _ = self._run({"postCreateCommand": "true"}, image_user="user")
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("user", self._exec_user(lines))
         self.assertIn("run --rm --entrypoint id fixture:base -u user", lines)
@@ -103,14 +111,22 @@ class LifecycleUser(unittest.TestCase):
         for config, want in (({"postCreateCommand": "true", "remoteUser": "remote", "containerUser": "cu"}, "remote"),
                              ({"postCreateCommand": "true", "containerUser": "cu"}, "cu")):
             with self.subTest(want=want):
-                result, lines = self._run(config, image_user="user")
+                result, lines, _ = self._run(config, image_user="user")
                 self.assertEqual(0, result.returncode, result.stderr)
                 self.assertEqual(want, self._exec_user(lines))
 
     def test_no_user_anywhere_is_root(self):
-        result, lines = self._run({"postCreateCommand": "true"}, image_user="")
+        result, lines, _ = self._run({"postCreateCommand": "true"}, image_user="")
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("root", self._exec_user(lines))
+
+    def test_failed_inspect_defers_with_no_lifecycle_effects(self):
+        result, lines, status = self._run({"postCreateCommand": "true"}, inspect_fails=True)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertTrue(status.startswith("deferred: could not read the image user of fixture:base"), status)
+        effects = [line for line in lines if line.split()[0] in ("run", "exec", "chown", "commit")]
+        self.assertEqual([], effects, lines)
+        self.assertIn("tag fixture:base fixture:latest", lines)
 
 
 if __name__ == "__main__":
