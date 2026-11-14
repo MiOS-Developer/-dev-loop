@@ -197,9 +197,11 @@ the same environment: measured, MiOS's `common-utils` feature adds 16 packages
 The CLI's build still resolves `FROM` to the local CA-trusting shadow, and
 `FEDORA_DEVCONTAINER_CLI=0` falls back to the plain build. Then the lifecycle runs
 once in a throwaway container. Its
-commands, `remoteUser` and `workspaceFolder` are read from the repo's `devcontainer.json`,
-never restated here, and the setup's clone is mounted at the `workspaceFolder`. The
-result is committed as `<name>:latest`, the image the wrapper runs: a Codespaces-style
+commands and `workspaceFolder` are read from the repo's `devcontainer.json`, never
+restated here, and they run as the user the Dev Containers CLI would attach as
+(`remoteUser`, else `containerUser`, else the image's own `USER`: for MiOS, the
+`[identity].username` account its build created). The setup's clone is mounted at
+the `workspaceFolder`, and the result is committed as `<name>:latest`, the image the wrapper runs: a Codespaces-style
 prebuild. A failed lifecycle degrades to the base image rather than to none, and says
 so: its status goes to `/opt/dev-loop-fedora/<name>.lifecycle` (`ok`, `skipped` or
 `failed: rc=N`), and the wrapper prints it whenever it creates a container from an image

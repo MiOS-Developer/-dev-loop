@@ -230,7 +230,6 @@
       }
     }
   },
-  "remoteUser": "user",
   "forwardPorts": [
     8900,
     8700,
