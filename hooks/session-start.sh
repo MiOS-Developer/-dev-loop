@@ -15,4 +15,13 @@ if [ "${CLAUDE_CODE_REMOTE:-}" = true ] && [ -x "$HOME/.local/bin/agy" ] && [ -n
   KE="${AGY_CLOUD_DIR:-$HOME/.config/agy-cloud}/keyring.env"
   [ -r "$K" ] && (. "$K") >/dev/null 2>&1 && [ -r "$KE" ] && cat "$KE" >> "$CLAUDE_ENV_FILE"
 fi
+# Cloud sessions provisioned from a MiOS checkout: the host's tailnet node (tailscaled) is a
+# process as well, so a resumed session has lost it, and an ephemeral node offline for a while
+# has been removed. MiOS's `bootstrap.sh tailnet` restarts it and re-enrolls; it runs detached
+# (it may mint a key and wait on the tailnet), logging under the MiOS cloud state directory.
+MC="${MIOS_DEPLOYMENT_CLOUD_STATE_DIRECTORY:-/var/lib/mios-cloud}"
+if [ "${CLAUDE_CODE_REMOTE:-}" = true ] && [ -r "$MC/source-root" ]; then
+  B="$(head -n 1 "$MC/source-root")/.devcontainer/cloud-shell/bootstrap.sh"
+  [ -f "$B" ] && (setsid nohup bash "$B" tailnet >> "$MC/tailnet.log" 2>&1 < /dev/null &)
+fi
 exit 0
