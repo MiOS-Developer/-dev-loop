@@ -3,7 +3,9 @@
 Canonical contract file. `.claude/CLAUDE.md`, `GEMINI.md`, and `.agent/rules/00-agents.md` are pointers
 to this file; loaders differ, so those files must stay pointers. (The Claude pointer lives under
 `.claude/` because this root is also the plugin root, and `claude plugin validate --strict` refuses a
-root `CLAUDE.md`; Claude Code loads `.claude/CLAUDE.md` as project context.) Per the dev-loop skill
+root `CLAUDE.md`; Claude Code loads `.claude/CLAUDE.md` as project context. Its import is `@../AGENTS.md`
+because an `@` import resolves against the importing file's directory: a bare `@AGENTS.md` there names
+the non-existent `.claude/AGENTS.md`, and the constitution silently stops loading.) Per the dev-loop skill
 (`skills/dev-loop/SKILL.md` §0), this file is law: where it and the skill disagree, this file wins.
 
 ## What this repository is
@@ -118,8 +120,17 @@ that provisions Google Antigravity's CLI (`agy`) inside Claude Code on the web c
   a floor, deletes a test to shrink a count, or merges. Feature PRs do not offset ratchet growth
   themselves; the drain does. Carried by the Routine "Legibility drain (per repo, every 3-5
   commits)".
-- **Pull requests (operator, 2026-09-25):** verified work goes up as a PR ready for review; the
-  operator reviews and merges from the GitHub app. The monitor never merges.
+- **Pull requests (operator, 2026-09-25; merge rule superseded 2026-11-21):** verified work goes up
+  as a PR ready for review. Operator decision 2026-11-21 ("ALWAYS PUSH AND MERGE ALL TO MAIN", then
+  "Yes, all, when checks pass" in the native question UI):
+  - The coordinator pushes its own verified fixes straight to main.
+  - It merges each session's PR once that PR's own checks pass. A check that is red on main too
+    counts as main's, not the PR's, and the coordinator shows that comparison before merging.
+  - The operator may still merge from the GitHub app.
+  - Lanes, subagents and managers never merge. `hooks/no-merge.sh` and `guard.sh` enforce it:
+    only a main session (no `agent_type`) on a machine carrying the out-of-repo marker
+    `${XDG_CONFIG_HOME:-~/.config}/dev-loop/merge-role` = `coordinator` gets through.
+  - A checkout cannot grant itself the role. Controls: `tests/test_guard_hooks.py::TestCoordinatorMergeRole`.
 - **Test doubles (operator, 2026-09-25):** tests replay REAL captured agy/claude transcripts;
   hand-written fakes are being removed, and live-harness runs happen on demand only. Scenarios
   no real transcript contains (a lane that tampers with its gate, hangs, or forges a receipt) are

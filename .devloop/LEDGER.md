@@ -410,9 +410,23 @@
 - blockers: -
 - unverified: one goal-eval C-01 run failed (exit 1) before the final code and did not reproduce in 4 later runs; cause unknown (suspect a slow agy test under load). SessionStart hook stacks keyring exports in CLAUDE_ENV_FILE (suggested task_0241cfd8)
 
+## 2026-11-21 02:44 · b3195d0 · done
+- objective: pointer import fixed; coordinator merge role (operator 2026-11-21)
+- done: 65fdc8a .claude/CLAUDE.md imports @../AGENTS.md (the bare @AGENTS.md named .claude/AGENTS.md and the constitution silently stopped loading) + tests/test_claude_pointer.py; b3195d0 merge_role_ok: only a main session on a machine with ~/.config/dev-loop/merge-role=coordinator passes no-merge.sh/guard.sh, subagents never (16 tests, 4 plants); /opt/dev-loop fast-forwarded to b3195d0 and this container marked coordinator
+- next: merge MiOS #86 when its drift-gate/smoke red matches main's 7e5baa645 baseline; #72 after its session merges main and reruns CI; #70 when green (ports #85's SRPM Lua), then close #85 as superseded; drafts #81/#82/#83 when marked ready
+- blockers: MiOS main smoke-test red until #70
+- unverified: the pointer import is proven by tests/test_claude_pointer.py, not yet observed loading AGENTS.md in a fresh session
+
 ## 2026-11-21 02:47 · 72bd692 · done
 - objective: SessionStart hook stops stacking keyring exports in CLAUDE_ENV_FILE (suggested task_0241cfd8)
 - done: hooks/session-start.sh owns one '# >>> dev-loop keyring' / '# <<< dev-loop keyring' block in CLAUDE_ENV_FILE (awk strips the old block, set -C sibling temp, mv -f; sh -n/dash -n clean); tests/test_session_start_keyring.py: SessionStartKeyringBlock, stand-in keyring, 3 runs -> one block with run-3 values, foreign lines kept once, no temp left; negative = the old >> line spliced into a copy fails the same check; manual plant of >> into the real hook turned the positive red, hook restored byte-identical (sha f3ce0b38); the real-keyring tests now isolate the MiOS tailnet branch (they launched the real bootstrap.sh tailnet); setup-antigravity.sh step 5 measured idempotent (3 runs, 2 lines, same sha); validate.sh conformance PASS (rc 0) once MiOS/mios-bootstrap/mios-micro were shallow-cloned beside the repo
 - next: operator reviews and merges the PR; then dismiss suggested task_0241cfd8
 - blockers: -
 - unverified: not exercised by a real Claude Code resume/compact; sessions already carrying stacked pairs keep them (the fix strips only its own marked block); validate.sh FAILS on a clean container without the sibling checkouts (test_e2e_cross_platform_parity F11, 10 failures, pre-existing at 72bd692)
+
+## 2026-11-21 02:49 · b0e968b · blocked
+- objective: coordinator merge round (operator rule 2026-11-21)
+- done: MiOS #86 merged as 7f93bfd82: drift-gate identical to main 7e5baa645 (unit 580/1, tests/test-framerate.py), smoke red in the same Smoke build step for causes #70 fixes, PR touches only build-mios.ps1 + manual-corpus.tsv; bootstrap parity both sides (main alone drifts, main+#86 15/15 match). MiOS 3a4d0dbd3: #69's docstring fix landed fresh under the MiOS identity (docs-ratchet narrative 316->315, 82 tests pass); #69 closed as superseded
+- next: 03:56Z check-in: #70 (merge if its reds match main's, then close #85); #72 after its session merges main and reruns CI; #81/#82/#83 when marked ready
+- blockers: MiOS goal C-01 cannot pass in this container: no pwsh for the PowerShell lint tier, and bake-smoke needs a full local image (7.6G free). It has to be evaluated on MiOS-DEV
+- unverified: -
