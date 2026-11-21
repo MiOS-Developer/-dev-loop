@@ -16,12 +16,18 @@ Verifies:
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 GUARD = ROOT / "hooks" / "guard.sh"
+NO_MERGE = ROOT / "hooks" / "no-merge.sh"
+# Every hook run here is isolated from a real coordinator merge-role marker on the machine running the tests:
+# without this, the deny controls below would pass or fail depending on who runs them.
+ENV = {**os.environ, "DEVLOOP_MERGE_ROLE_FILE": "/nonexistent/dev-loop/merge-role"}
 
 
 class TestGuardHook(unittest.TestCase):
@@ -32,6 +38,7 @@ class TestGuardHook(unittest.TestCase):
             input=payload,
             capture_output=True,
             text=True,
+            env=ENV,
         )
         return res.returncode, res.stdout.strip()
 
@@ -106,12 +113,12 @@ class TestGuardHook(unittest.TestCase):
 
 
 class TestNoMergeHook(unittest.TestCase):
-    """The monitor and managers never merge (AGENTS.md); the hook enforces it, not just the rule."""
+    """Lanes, subagents and managers never merge (AGENTS.md); the hook enforces it, not just the rule."""
 
     def run_hook(self, tool: str) -> str:
-        res = subprocess.run(["sh", str(ROOT / "hooks" / "no-merge.sh")],
+        res = subprocess.run(["sh", str(NO_MERGE)],
                              input=json.dumps({"tool_name": tool, "tool_input": {}}),
-                             capture_output=True, text=True)
+                             capture_output=True, text=True, env=ENV)
         self.assertEqual(res.returncode, 0)
         return res.stdout.strip()
 
@@ -120,7 +127,7 @@ class TestNoMergeHook(unittest.TestCase):
                      "mcp__github__update_pull_request_branch", "mcp__forge__merge_pull_request"):
             out = self.run_hook(tool)
             self.assertIn('"permissionDecision":"deny"', out, tool)
-            self.assertIn("the operator merges", out, tool)
+            self.assertIn("the operator or the coordinator merges", out, tool)
 
     def test_review_and_pr_tools_pass(self):
         for tool in ("mcp__github__create_pull_request", "mcp__github__pull_request_read",
@@ -136,8 +143,57 @@ class TestNoMergeHook(unittest.TestCase):
 
     def test_gh_pr_merge_denied_in_bash(self):
         res = subprocess.run(["sh", str(GUARD)], input=json.dumps({"tool_input": {"command": "gh pr merge 42 --squash"}}),
-                             capture_output=True, text=True)
-        self.assertIn("the operator merges", res.stdout)
+                             capture_output=True, text=True, env=ENV)
+        self.assertIn("the operator or the coordinator merges", res.stdout)
+
+
+class TestCoordinatorMergeRole(unittest.TestCase):
+    """Operator 2026-11-21: the coordinator merges a PR once its checks pass. Only a MAIN session (no agent_type) on a
+    machine carrying the out-of-repo marker holding exactly "coordinator" gets through; a subagent never does."""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp(prefix="merge-role-"))
+        self.marker = self.dir / "merge-role"
+
+    def tearDown(self):
+        for p in self.dir.iterdir():
+            p.unlink()
+        self.dir.rmdir()
+
+    def hook(self, script: Path, payload: dict) -> str:
+        env = {**os.environ, "DEVLOOP_MERGE_ROLE_FILE": str(self.marker)}
+        res = subprocess.run(["sh", str(script)], input=json.dumps(payload), capture_output=True, text=True, env=env)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        return res.stdout.strip()
+
+    def merge(self, agent_type: str | None = None) -> str:
+        p = {"tool_name": "mcp__github__merge_pull_request", "tool_input": {}}
+        if agent_type is not None:
+            p["agent_type"] = agent_type
+        return self.hook(NO_MERGE, p)
+
+    def test_marked_main_session_may_merge(self):
+        self.marker.write_text("coordinator\n")
+        self.assertEqual(self.merge(), "")
+        self.assertEqual(self.hook(GUARD, {"tool_input": {"command": "gh pr merge 42 --squash"}}), "")
+
+    def test_subagent_is_denied_even_on_a_marked_machine(self):
+        self.marker.write_text("coordinator\n")
+        for agent in ("dev-loop:lane-worker", "dev-loop:orchestrator", "general-purpose"):
+            self.assertIn('"permissionDecision":"deny"', self.merge(agent), agent)
+        out = self.hook(GUARD, {"agent_type": "dev-loop:lane-worker", "tool_input": {"command": "gh pr merge 42"}})
+        self.assertIn('"permissionDecision":"deny"', out)
+
+    def test_any_other_marker_content_is_denied(self):
+        for content in ("", "operator", "coordinator-ish", "yes", "Coordinator"):
+            self.marker.write_text(content)
+            self.assertIn('"permissionDecision":"deny"', self.merge(), repr(content))
+
+    def test_no_marker_is_denied(self):
+        self.assertIn('"permissionDecision":"deny"', self.merge())
+
+    def test_non_merge_tools_unaffected(self):
+        self.assertEqual(self.hook(NO_MERGE, {"tool_name": "mcp__github__pull_request_read"}), "")
 
 
 if __name__ == "__main__":

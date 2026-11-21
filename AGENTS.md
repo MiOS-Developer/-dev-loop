@@ -120,8 +120,17 @@ that provisions Google Antigravity's CLI (`agy`) inside Claude Code on the web c
   a floor, deletes a test to shrink a count, or merges. Feature PRs do not offset ratchet growth
   themselves; the drain does. Carried by the Routine "Legibility drain (per repo, every 3-5
   commits)".
-- **Pull requests (operator, 2026-09-25):** verified work goes up as a PR ready for review; the
-  operator reviews and merges from the GitHub app. The monitor never merges.
+- **Pull requests (operator, 2026-09-25; merge rule superseded 2026-11-21):** verified work goes up
+  as a PR ready for review. Operator decision 2026-11-21 ("ALWAYS PUSH AND MERGE ALL TO MAIN", then
+  "Yes, all, when checks pass" in the native question UI):
+  - The coordinator pushes its own verified fixes straight to main.
+  - It merges each session's PR once that PR's own checks pass. A check that is red on main too
+    counts as main's, not the PR's, and the coordinator shows that comparison before merging.
+  - The operator may still merge from the GitHub app.
+  - Lanes, subagents and managers never merge. `hooks/no-merge.sh` and `guard.sh` enforce it:
+    only a main session (no `agent_type`) on a machine carrying the out-of-repo marker
+    `${XDG_CONFIG_HOME:-~/.config}/dev-loop/merge-role` = `coordinator` gets through.
+  - A checkout cannot grant itself the role. Controls: `tests/test_guard_hooks.py::TestCoordinatorMergeRole`.
 - **Test doubles (operator, 2026-09-25):** tests replay REAL captured agy/claude transcripts;
   hand-written fakes are being removed, and live-harness runs happen on demand only. Scenarios
   no real transcript contains (a lane that tampers with its gate, hangs, or forges a receipt) are
