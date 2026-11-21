@@ -3,7 +3,9 @@
 Canonical contract file. `.claude/CLAUDE.md`, `GEMINI.md`, and `.agent/rules/00-agents.md` are pointers
 to this file; loaders differ, so those files must stay pointers. (The Claude pointer lives under
 `.claude/` because this root is also the plugin root, and `claude plugin validate --strict` refuses a
-root `CLAUDE.md`; Claude Code loads `.claude/CLAUDE.md` as project context.) Per the dev-loop skill
+root `CLAUDE.md`; Claude Code loads `.claude/CLAUDE.md` as project context. Its import is `@../AGENTS.md`
+because an `@` import resolves against the importing file's directory: a bare `@AGENTS.md` there names
+the non-existent `.claude/AGENTS.md`, and the constitution silently stops loading.) Per the dev-loop skill
 (`skills/dev-loop/SKILL.md` §0), this file is law: where it and the skill disagree, this file wins.
 
 ## What this repository is
