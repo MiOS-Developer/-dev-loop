@@ -437,3 +437,10 @@
 - next: 19:47Z: main baseline on 8dfaf1876, then merge #93, #94, #92, #91 where reds are a subset of main's; close #85
 - blockers: main CI run on 8dfaf1876; #94 smoke in progress
 - unverified: app_detection red on main (expected but not yet shown: cargo stops before it on #91/#94)
+
+## 2026-11-21 19:22 · ec21f9b · blocked
+- objective: PS5 freezes: hold for Option B
+- done: freeze 8 at 19:19:32Z on boot b7ce6402 after 57 min, no caps, same signature (sda writes stuck behind the RTL9210, psi.io climbing, nothing logged); mios-k3s compaction 6 s before. Operator decision (native UI): leave mios-ps5 off until Option B; orchestrator told: no power-cycle ask, no watch
+- next: Option B arrives: lsusb 174c:2364 present and 0bda:9210 gone, lsusb -t uas at 5000M/10000M, then a 12-24 h soak; freeze-8 boot -1 read deferred until then
+- blockers: Option B delivery
+- unverified: stuck xHCI/bridge transfer as the mechanism
