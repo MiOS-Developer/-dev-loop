@@ -409,3 +409,10 @@
 - next: push to main (operator: ALWAYS PUSH AND MERGE ALL TO MAIN); then MiOS be767e8a6 (.devloop/config.json task_id_pattern) to MiOS main; re-run goal eval in both repos
 - blockers: -
 - unverified: one goal-eval C-01 run failed (exit 1) before the final code and did not reproduce in 4 later runs; cause unknown (suspect a slow agy test under load). SessionStart hook stacks keyring exports in CLAUDE_ENV_FILE (suggested task_0241cfd8)
+
+## 2026-11-21 02:47 · 72bd692 · done
+- objective: SessionStart hook stops stacking keyring exports in CLAUDE_ENV_FILE (suggested task_0241cfd8)
+- done: hooks/session-start.sh owns one '# >>> dev-loop keyring' / '# <<< dev-loop keyring' block in CLAUDE_ENV_FILE (awk strips the old block, set -C sibling temp, mv -f; sh -n/dash -n clean); tests/test_session_start_keyring.py: SessionStartKeyringBlock, stand-in keyring, 3 runs -> one block with run-3 values, foreign lines kept once, no temp left; negative = the old >> line spliced into a copy fails the same check; manual plant of >> into the real hook turned the positive red, hook restored byte-identical (sha f3ce0b38); the real-keyring tests now isolate the MiOS tailnet branch (they launched the real bootstrap.sh tailnet); setup-antigravity.sh step 5 measured idempotent (3 runs, 2 lines, same sha); validate.sh conformance PASS (rc 0) once MiOS/mios-bootstrap/mios-micro were shallow-cloned beside the repo
+- next: operator reviews and merges the PR; then dismiss suggested task_0241cfd8
+- blockers: -
+- unverified: not exercised by a real Claude Code resume/compact; sessions already carrying stacked pairs keep them (the fix strips only its own marked block); validate.sh FAILS on a clean container without the sibling checkouts (test_e2e_cross_platform_parity F11, 10 failures, pre-existing at 72bd692)
