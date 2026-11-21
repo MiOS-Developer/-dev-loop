@@ -437,3 +437,17 @@
 - next: 19:47Z: main baseline on 8dfaf1876, then merge #93, #94, #92, #91 where reds are a subset of main's; close #85
 - blockers: main CI run on 8dfaf1876; #94 smoke in progress
 - unverified: app_detection red on main (expected but not yet shown: cargo stops before it on #91/#94)
+
+## 2026-11-21 18:59 · ec21f9b · blocked
+- objective: Cloud session has no mios-dev: measured root cause, degrade-open fix, mios-micro devcontainer parity
+- done: MiOS PR cloud-session-mios-dev-degrades-open: bootstrap.sh claude-code installs mios-dev before the preflight, preflight verdict recorded for status, [deployment.cloud].wrapper, README; two-sided test. mios-micro PR #4: MiOS Containerfile mirror + satellite devcontainer.json + mirror test (ruff clean, 5/5)
+- next: operator: decide the cloud image policy (57 GB writable < 80 GB min_free_gb): core image, gce-up, or in-place MiOS-DEV; tailnet enrollment gets 403 from controlplane.tailscale.com through the egress proxy; rotate /var/lib/mios-cloud/ssh/id_ed25519 (printed into a transcript, never certified)
+- blockers: cloud VM cannot hold ghcr.io/mios-developer/mios:latest; not coordinator here (no merge-role marker)
+- unverified: the new claude-code test is root-only and was run here as root; devcontainer builds of the mios-micro definition were not run (no Codespace)
+
+## 2026-11-21 19:01 · ec21f9b · done
+- objective: Operator decision (native question UI, 2026-11-21): cloud sessions take a CORE MiOS image profile
+- done: Asked which path the cloud projection takes when the podman store (57 GB) is under min_free_gb (80): operator chose 'Core image profile' over gce-up and in-place conversion. The SSOT pipeline must emit a smaller core MiOS image for hosts under min_free_gb; the cloud session pulls that and the rest degrades open (AGENTS.md operator principle 2026-09-25).
+- next: design + build the core profile in MiOS (task #11 SPIKE): a [image].core_ref or profile emitted by the one pipeline, bootstrap.sh preflight selects it when the store is under min_free_gb, and the devcontainer Containerfile builds FROM it unchanged
+- blockers: -
+- unverified: -
