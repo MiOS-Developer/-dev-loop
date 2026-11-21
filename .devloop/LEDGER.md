@@ -416,3 +416,10 @@
 - next: merge MiOS #86 when its drift-gate/smoke red matches main's 7e5baa645 baseline; #72 after its session merges main and reruns CI; #70 when green (ports #85's SRPM Lua), then close #85 as superseded; drafts #81/#82/#83 when marked ready
 - blockers: MiOS main smoke-test red until #70
 - unverified: the pointer import is proven by tests/test_claude_pointer.py, not yet observed loading AGENTS.md in a fresh session
+
+## 2026-11-21 02:49 · b0e968b · blocked
+- objective: coordinator merge round (operator rule 2026-11-21)
+- done: MiOS #86 merged as 7f93bfd82: drift-gate identical to main 7e5baa645 (unit 580/1, tests/test-framerate.py), smoke red in the same Smoke build step for causes #70 fixes, PR touches only build-mios.ps1 + manual-corpus.tsv; bootstrap parity both sides (main alone drifts, main+#86 15/15 match). MiOS 3a4d0dbd3: #69's docstring fix landed fresh under the MiOS identity (docs-ratchet narrative 316->315, 82 tests pass); #69 closed as superseded
+- next: 03:56Z check-in: #70 (merge if its reds match main's, then close #85); #72 after its session merges main and reruns CI; #81/#82/#83 when marked ready
+- blockers: MiOS goal C-01 cannot pass in this container: no pwsh for the PowerShell lint tier, and bake-smoke needs a full local image (7.6G free). It has to be evaluated on MiOS-DEV
+- unverified: -
