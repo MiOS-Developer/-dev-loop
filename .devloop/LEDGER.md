@@ -395,3 +395,17 @@
 
 
 
+
+## 2026-11-21 00:44 · a68eff3 · pre-compact
+- objective: context compaction
+- done: see git log -5
+- next: re-read AGENTS.md, TASKS.md, this ledger; continue the in_progress task
+- blockers: -
+- unverified: anything not yet committed: 2 dirty path(s)
+
+## 2026-11-21 01:40 · a98729f · done
+- objective: dev-loop goal C-01 green; MiOS task ids validate
+- done: 26df839 project task-id pattern ($DEVLOOP_TASK_ID_RE / .devloop/config.json task_id_pattern, added to the built-in shape; vacuity + bad-regex refused; 7 tests, 5 plants); a98729f Claude pointer moved to .claude/CLAUDE.md (strict validator refuses a root CLAUDE.md since 2.1.330) + plain icon; validate.sh conformance PASS
+- next: push to main (operator: ALWAYS PUSH AND MERGE ALL TO MAIN); then MiOS be767e8a6 (.devloop/config.json task_id_pattern) to MiOS main; re-run goal eval in both repos
+- blockers: -
+- unverified: one goal-eval C-01 run failed (exit 1) before the final code and did not reproduce in 4 later runs; cause unknown (suspect a slow agy test under load). SessionStart hook stacks keyring exports in CLAUDE_ENV_FILE (suggested task_0241cfd8)

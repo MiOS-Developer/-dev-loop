@@ -21,7 +21,7 @@
       "command": null,
       "target_path": null,
       "passed": false,
-      "details": "Dirty files: 1 files \u2014 skills/dev-loop/scripts/goal.py"
+      "details": "Dirty files: 6 files \u2014 CLAUDE.md -> .claude/CLAUDE.md, .devloop/LEDGER.md, AGENTS.md, skills/dev-loop/scripts/artifacts.py, .claude-plugin/icon.png"
     }
   ],
   "non_goals": [
