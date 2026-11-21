@@ -71,6 +71,10 @@ STATUS_DIALECT_OUT = {v: k for k, v in STATUS_ALIASES.items()}
 # trailing newline.
 TASK_ID_RE = re.compile(r"[A-Z][A-Z0-9]*(?:[- ][A-Z0-9]+)*(?:\.\.(?:[A-Z][A-Z0-9]*-)?[0-9]+)?(?:#[0-9]+)?")
 TASKS_FILE_ENV = "DEVLOOP_TASKS_FILE"
+# A project's own id convention (e.g. task_<ULID>) ADDS to TASK_ID_RE, never replaces it: $DEVLOOP_TASK_ID_RE,
+# else "task_id_pattern" in .devloop/config.json (the project's dev-loop config; other keys are left alone).
+TASK_ID_RE_ENV = "DEVLOOP_TASK_ID_RE"
+DEVLOOP_CONFIG = ".devloop/config.json"
 TASK_TYPE = ["task", "epic", "bug"]
 CANON = {  # target path -> template
     "AGENTS.md": "AGENTS.md", "docs/GOALS.md": "GOALS.md", "docs/ROADMAP.md": "ROADMAP.md", "docs/DOD.md": "DOD.md",
@@ -493,12 +497,30 @@ def cmd_bridges(a):
 
 
 # ---------------------------------------------------------------- tasks
-def validate(tasks: list[dict]) -> list[str]:
+def project_task_id_re(root: Path) -> "re.Pattern[str] | None":
+    """The project's declared id pattern, or None. Refuses one that would make the id check vacuous."""
+    src, pat = TASK_ID_RE_ENV, os.environ.get(TASK_ID_RE_ENV, "")
+    if not pat:
+        cfg = Path(root) / DEVLOOP_CONFIG
+        if not cfg.is_file(): return None
+        try: data = json.loads(cfg.read_text("utf-8"))
+        except (OSError, ValueError) as e: die(f"{DEVLOOP_CONFIG}: {e}")
+        src, pat = f"{DEVLOOP_CONFIG} task_id_pattern", (data.get("task_id_pattern") or "") if isinstance(data, dict) else ""
+        if not pat: return None
+    try: rx = re.compile(pat)
+    except re.error as e: die(f"{src}: invalid regex {pat!r}: {e}")
+    for probe in ("", " ", "a b", "x\ny"):
+        if rx.fullmatch(probe): die(f"{src}: {pat!r} matches {probe!r}, so it would accept any id; anchor it to the project's real id shape")
+    return rx
+
+
+def validate(tasks: list[dict], extra_id_re: "re.Pattern[str] | None" = None) -> list[str]:
     errs = []; ids = [t.get("id") for t in tasks]
     if len(ids) != len(set(ids)): errs.append("duplicate ids")
+    shapes = "T-001, AGY-106..122, AGY-503..AGY-510, G-TASK 1 or T-031#2" + (f", or the project pattern {extra_id_re.pattern!r}" if extra_id_re else "")
     for t in tasks:
         i = t.get("id", "?")
-        if not (isinstance(i, str) and TASK_ID_RE.fullmatch(i)): errs.append(f"{i!r}: id must look like T-001, AGY-106..122, AGY-503..AGY-510, G-TASK 1 or T-031#2")
+        if not (isinstance(i, str) and (TASK_ID_RE.fullmatch(i) or (extra_id_re and extra_id_re.fullmatch(i)))): errs.append(f"{i!r}: id must look like {shapes}")
         if t.get("status") not in TASK_STATUS: errs.append(f"{i}: status {t.get('status')!r} not in {TASK_STATUS}")
         if t.get("type", "task") not in TASK_TYPE: errs.append(f"{i}: type {t.get('type')!r} not in {TASK_TYPE}")
         for d in t.get("depends_on", []):
@@ -596,7 +618,7 @@ def _cmd_tasks(a, root: Path, path: Path):
         if unknown and a.op == "validate": die(f"{name} invalid:\n  " + "\n  ".join(f"TASKS.md override for unknown task {i!r}" for i in unknown))
     shown = (lambda st: STATUS_DIALECT_OUT.get(st, st)) if dialect == "openai" else (lambda st: st)
     if a.op == "validate":
-        errs = validate(tasks)
+        errs = validate(tasks, project_task_id_re(root))
         die(f"{name} invalid:\n  " + "\n  ".join(errs)) if errs else print(f"{name} ok: {len(tasks)} tasks")
     elif a.op == "render":
         md = root / "TASKS.md"
@@ -604,7 +626,7 @@ def _cmd_tasks(a, root: Path, path: Path):
             with open(md, encoding="utf-8", errors="replace") as fh: first = fh.readline().rstrip("\r\n")
             if first != RENDER_BANNER:
                 print("TASKS.md owned by another renderer; skipped"); return
-        errs = validate(tasks)
+        errs = validate(tasks, project_task_id_re(root))
         if errs: die(f"refusing to render invalid {name}:\n  " + "\n  ".join(errs))
         box = {"done": "x", "cancelled": "-"}; src = _rel(root, path)
         lines = [RENDER_BANNER, "", f"_Rendered from `{src}` — edit the JSONL (or `artifacts.py tasks set/add`), then `artifacts.py tasks render`. Do not hand-edit this file outside the overrides block._", ""]
@@ -639,7 +661,7 @@ def _cmd_tasks(a, root: Path, path: Path):
              "depends_on": [d for d in (a.depends or "").split(",") if d], "acceptance_criteria": a.ac or [],
              "verification": {k: v for k, v in (("positive_cmd", a.positive), ("negative_control_cmd", a.negative), ("negative_expect", a.expect)) if v},
              "verification_evidence": "", "links": [], "notes": "", "created": time.strftime("%Y-%m-%d")}
-        tasks.append(t); errs = validate(tasks)
+        tasks.append(t); errs = validate(tasks, project_task_id_re(root))
         if errs: die(f"would make {name} invalid:\n  " + "\n  ".join(errs))
         save_tasks(root, tasks, path, tf); print(f"added {a.id}")
     elif a.op == "next":
@@ -882,7 +904,7 @@ def _cmd_tasks(a, root: Path, path: Path):
                 "verification_evidence", "links", "notes", "created"
             ],
             "properties": {
-                "id": {"type": "string", "pattern": "^" + TASK_ID_RE.pattern + "$"},
+                "id": {"type": "string", "pattern": "^(?:" + TASK_ID_RE.pattern + ("|" + _pid.pattern if (_pid := project_task_id_re(root)) else "") + ")$"},
                 "type": {"type": "string", "enum": ["task", "epic", "bug"]},
                 "title": {"type": "string"},
                 "status": {"type": "string", "enum": ["open", "in_progress", "blocked", "done", "cancelled"]},
