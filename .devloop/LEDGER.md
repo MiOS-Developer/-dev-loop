@@ -409,3 +409,10 @@
 - next: push to main (operator: ALWAYS PUSH AND MERGE ALL TO MAIN); then MiOS be767e8a6 (.devloop/config.json task_id_pattern) to MiOS main; re-run goal eval in both repos
 - blockers: -
 - unverified: one goal-eval C-01 run failed (exit 1) before the final code and did not reproduce in 4 later runs; cause unknown (suspect a slow agy test under load). SessionStart hook stacks keyring exports in CLAUDE_ENV_FILE (suggested task_0241cfd8)
+
+## 2026-11-21 02:44 · b3195d0 · done
+- objective: pointer import fixed; coordinator merge role (operator 2026-11-21)
+- done: 65fdc8a .claude/CLAUDE.md imports @../AGENTS.md (the bare @AGENTS.md named .claude/AGENTS.md and the constitution silently stopped loading) + tests/test_claude_pointer.py; b3195d0 merge_role_ok: only a main session on a machine with ~/.config/dev-loop/merge-role=coordinator passes no-merge.sh/guard.sh, subagents never (16 tests, 4 plants); /opt/dev-loop fast-forwarded to b3195d0 and this container marked coordinator
+- next: merge MiOS #86 when its drift-gate/smoke red matches main's 7e5baa645 baseline; #72 after its session merges main and reruns CI; #70 when green (ports #85's SRPM Lua), then close #85 as superseded; drafts #81/#82/#83 when marked ready
+- blockers: MiOS main smoke-test red until #70
+- unverified: the pointer import is proven by tests/test_claude_pointer.py, not yet observed loading AGENTS.md in a fresh session
