@@ -430,3 +430,10 @@
 - next: 07:13Z check-in: main CI on f9bf2f222; merge the sync-fix and Lua PRs when their checks pass; close #85 after the Lua PR
 - blockers: main CI in flight; two delegated PRs
 - unverified: f9bf2f222's generated-artifacts pass is proven only by CI (the local mios-gen is older than main)
+
+## 2026-11-21 18:21 · a7427db · blocked
+- objective: MiOS main CI baseline after the integration
+- done: MiOS 8dfaf1876: manual-corpus.tsv emit.rs rows shifted per CI's own render (f9bf2f222's rustfmt moved 19 rows; that broke 'Generated artifacts'); new rows land on comments, old rows on code. Triage: #91/#92/#93/#94 smoke all fail at stage 65 like main (mios plugin make; #94 ports them); their drift-gate reds are main-latent (mios-gen pipe_boundaries e2e, mios-inputd app_detection, flaky TUI/tmux-hook-storm unit tests); routed to the 17-suite session (#93)
+- next: 19:47Z: main baseline on 8dfaf1876, then merge #93, #94, #92, #91 where reds are a subset of main's; close #85
+- blockers: main CI run on 8dfaf1876; #94 smoke in progress
+- unverified: app_detection red on main (expected but not yet shown: cargo stops before it on #91/#94)
