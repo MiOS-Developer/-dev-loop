@@ -423,3 +423,10 @@
 - next: 03:56Z check-in: #70 (merge if its reds match main's, then close #85); #72 after its session merges main and reruns CI; #81/#82/#83 when marked ready
 - blockers: MiOS goal C-01 cannot pass in this container: no pwsh for the PowerShell lint tier, and bake-smoke needs a full local image (7.6G free). It has to be evaluated on MiOS-DEV
 - unverified: -
+
+## 2026-11-21 06:08 · a053311 · blocked
+- objective: MiOS main health after the operator's PR integration
+- done: operator integrated #69 #70 #72 #81-#84 #86 into MiOS main (e56a93e1f); main's drift-gate then failed 'Generated artifacts match the SSOT' (2 Quadlets carried host-tier values: runner:13, LLAMA_ARG_THREADS=8) and would fail cargo fmt (emit.rs); fixed on main f9bf2f222 (CI's own render + cargo fmt; fmt --check 1->0; ssot-lint PASS; resolver tests 135/4 identical before/after, the 4 need a private runtime dir this container lacks). Root cause: mios-gen sync renders committed projections through the host/user/env cascade; delegated to session_01LbqTYRDig6V1zqq2tFSRAq. #85's SRPM-Lua port re-routed to the image-build session as a new PR from main
+- next: 07:13Z check-in: main CI on f9bf2f222; merge the sync-fix and Lua PRs when their checks pass; close #85 after the Lua PR
+- blockers: main CI in flight; two delegated PRs
+- unverified: f9bf2f222's generated-artifacts pass is proven only by CI (the local mios-gen is older than main)
