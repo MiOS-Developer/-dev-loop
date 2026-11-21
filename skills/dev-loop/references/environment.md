@@ -220,8 +220,11 @@ container, so the setup script first runs `setup-antigravity.sh` on the host (ag
 keyring stack, headless grants, the dev-loop skill; `FEDORA_PROVISION_HOST=0` skips it).
 It lands in the snapshot, so every session starts with `agy` on PATH. Only the keyring
 *daemon* dies between sessions. The dev-loop plugin's SessionStart hook revives it in
-every cloud session, in whatever repo, and appends its bus address to
-`$CLAUDE_ENV_FILE` so every later tool call reaches it. The repo's own SessionStart hook
+every cloud session, in whatever repo, and writes its bus address into
+`$CLAUDE_ENV_FILE` so every later tool call reaches it: one block between
+`# >>> dev-loop keyring` and `# <<< dev-loop keyring`, replaced (temp file, then rename) on
+every SessionStart, since that file outlives startup, resume, clear and compact and a plain
+append stacked a pair per event. The repo's own SessionStart hook
 only runs in sessions rooted in this repo, which is why a session opened at `/home/user`
 had no agy. Sign-in is still `agy-login.sh` once per container: the credential is
 written after the snapshot, so a new session starts without it, and it is never baked.
