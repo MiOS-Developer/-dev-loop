@@ -464,3 +464,10 @@
 - next: CI on 2119ac4; lease holder lands #96 then #104; last check-in 12:33Z
 - blockers: none
 - unverified: CI on 2119ac4 not yet run; no core bake anywhere
+
+## 2026-11-27 12:37 · f7eb7be · done
+- objective: MiOS #104 check-in 3: CI on 2119ac4 stopped at generated-artifacts (corpus rows of the two edited tests); re-rendered and pushed
+- done: run 45966251467: drift-gate red at 'Generated artifacts match the SSOT' (manual-corpus rows for tests/test-code-server-bake.py and tools/test_ci-suites.py, mine); smoke-test red at 65-bake-hyprland as main; fix pushed as the sync commit on cloud-core-image-profile; #41 clean at f7eb7be; #96 open; no comments on either PR
+- next: CI on the new head must reach the unit tier and show exactly main's 12 failures; lease holder lands #96 then #104; check-ins stop after this one
+- blockers: none
+- unverified: CI on the new head; no core bake anywhere
