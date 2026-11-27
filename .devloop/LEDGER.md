@@ -444,3 +444,37 @@
 - next: Option B arrives: lsusb 174c:2364 present and 0bda:9210 gone, lsusb -t uas at 5000M/10000M, then a 12-24 h soak; freeze-8 boot -1 read deferred until then
 - blockers: Option B delivery
 - unverified: stuck xHCI/bridge transfer as the mechanism
+## 2026-11-27 03:30 · 8fff072 · done
+- objective: MiOS core image profile for cloud stores under 80 GB (operator decision 2026-11-21; ADR-0025 task #11)
+- done: MiOS PR #104 (draft, stacks on #96): SPIKE docs/research/spike-core-image-profile-cloud.md (measured: core closure 912 MiB download, +2.9 GB installed, base 2.5 GB compressed; est. 11-13 GB unpacked vs 57 GB free); SSOT [image].core_ref, [deployment.cloud].core_min_free_gb=25, [profiles.core].targets; names registry +3; build-core CI job bakes MIOS_PROFILES_DEFAULT=<floor> with no bound images, verifies the profile record (88-finalize writes MIOS_PROFILES_DEFAULT into /usr/lib/mios/version) and publishes/signs core_ref; mios-gate profile-integrity package-subset check (2 Rust negatives + drift-gate-negatives plant); bootstrap.sh preflight picks ref/core_ref/fails, records $STATE/image.ref, status names image+profile (test-cloud-overlay 47 pass, new two-sided test); generated artifacts regenerated (also what #96 left stale). -dev-loop PR #41: AGENTS.md environment section.
+- next: operator reviews/merges #104 after #96; first build-core run on main measures the real core image size -> replace core_min_free_gb=25; follow-ups in the SPIKE: profile-aware _check_critical_packages, ADR-0025 Q1 base, rpmfusion rawhide names
+- blockers: none; Claude GitHub App not installed on either repo so PR events do not wake this session
+- unverified: no core bake has ever run; the 25 GB threshold is an estimate from measured parts; full 98-drift-checks vs clean worktree differs only in already-red legibility ratchet numbers (+56 shell lines, +1 doc, +1 tracked file); one pre-existing test-cloud-overlay failure (/usr/bin/mios-toml-get) and 3 pre-existing image-equivalence failures reproduce on the clean tree
+
+## 2026-11-27 03:42 · 5c01f16 · done
+- objective: MiOS #104 follow-up: merge main 74ddb51, re-render projections, add the build-core job that a hook had silently refused, retarget base to main
+- done: 82055d4 merge (main's side of generated files) + 35ef26e (build-core job inserted from a script, 13 steps parse; ROADMAP/manifest/metadata/manual-corpus re-rendered on the merged tree, sync fixed point); re-run on merged tree: mios-gate profiles 6 pass, profile-integrity clean, negative passed, cloud-script tests 7 pass, check_manual_ledger/check_globals_generated/check_llms_txt pass; #104 base -> main; PR description corrected; Monitor informed
+- next: mios-ci on #104 head 35ef26e; lease holder lands #96 then #104; first build-core run measures the core image
+- blockers: none
+- unverified: no core bake has run; CI on 35ef26e not yet observed
+
+## 2026-11-27 08:33 · 020b87e · done
+- objective: MiOS #104 CI follow-up: two unit suites this PR broke, fixed; -dev-loop #41 re-merged with main
+- done: MiOS 2119ac4: test-code-server-bake.py harness carries selected_ref; test_ci-suites.py Portal-download consumer count tied to download steps (planted red, restored green); remaining drift-gate unit reds (12) and smoke-test 65-bake-hyprland match main's run 45932949533; -dev-loop 020b87e merged origin/main (LEDGER.md union); PR #104 description carries the CI comparison; Monitor informed
+- next: CI on 2119ac4; lease holder lands #96 then #104; last check-in 12:33Z
+- blockers: none
+- unverified: CI on 2119ac4 not yet run; no core bake anywhere
+
+## 2026-11-27 12:37 · f7eb7be · done
+- objective: MiOS #104 check-in 3: CI on 2119ac4 stopped at generated-artifacts (corpus rows of the two edited tests); re-rendered and pushed
+- done: run 45966251467: drift-gate red at 'Generated artifacts match the SSOT' (manual-corpus rows for tests/test-code-server-bake.py and tools/test_ci-suites.py, mine); smoke-test red at 65-bake-hyprland as main; fix pushed as the sync commit on cloud-core-image-profile; #41 clean at f7eb7be; #96 open; no comments on either PR
+- next: CI on the new head must reach the unit tier and show exactly main's 12 failures; lease holder lands #96 then #104; check-ins stop after this one
+- blockers: none
+- unverified: CI on the new head; no core bake anywhere
+
+## 2026-11-27 16:45 · c7c3595 · done
+- objective: MiOS #104 check-in 4: CI on a93541d matches main's 12 unit reds; main 9f415f8 merged in
+- done: run 46000173652: generated artifacts clean, unit tier = main's 12 failures, smoke-test red at 65-bake-hyprland as main; merged origin/main 9f415f8 (a27e90c, theirs on tools/manifest.json), re-rendered manifest (abf30f2, fixed point), profile tests 6 pass, profile-integrity clean, cloud-script tests 5 pass, test-code-server-bake OK; pushed. #41 clean; #96 open
+- next: CI on abf30f2 (main's new reds may differ after #107); lease holder lands #96 then #104
+- blockers: none
+- unverified: CI on abf30f2; no core bake anywhere
