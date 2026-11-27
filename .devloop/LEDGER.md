@@ -471,3 +471,10 @@
 - next: CI on the new head must reach the unit tier and show exactly main's 12 failures; lease holder lands #96 then #104; check-ins stop after this one
 - blockers: none
 - unverified: CI on the new head; no core bake anywhere
+
+## 2026-11-27 16:45 · c7c3595 · done
+- objective: MiOS #104 check-in 4: CI on a93541d matches main's 12 unit reds; main 9f415f8 merged in
+- done: run 46000173652: generated artifacts clean, unit tier = main's 12 failures, smoke-test red at 65-bake-hyprland as main; merged origin/main 9f415f8 (a27e90c, theirs on tools/manifest.json), re-rendered manifest (abf30f2, fixed point), profile tests 6 pass, profile-integrity clean, cloud-script tests 5 pass, test-code-server-bake OK; pushed. #41 clean; #96 open
+- next: CI on abf30f2 (main's new reds may differ after #107); lease holder lands #96 then #104
+- blockers: none
+- unverified: CI on abf30f2; no core bake anywhere
