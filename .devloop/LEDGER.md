@@ -457,3 +457,10 @@
 - next: mios-ci on #104 head 35ef26e; lease holder lands #96 then #104; first build-core run measures the core image
 - blockers: none
 - unverified: no core bake has run; CI on 35ef26e not yet observed
+
+## 2026-11-27 08:33 · 020b87e · done
+- objective: MiOS #104 CI follow-up: two unit suites this PR broke, fixed; -dev-loop #41 re-merged with main
+- done: MiOS 2119ac4: test-code-server-bake.py harness carries selected_ref; test_ci-suites.py Portal-download consumer count tied to download steps (planted red, restored green); remaining drift-gate unit reds (12) and smoke-test 65-bake-hyprland match main's run 45932949533; -dev-loop 020b87e merged origin/main (LEDGER.md union); PR #104 description carries the CI comparison; Monitor informed
+- next: CI on 2119ac4; lease holder lands #96 then #104; last check-in 12:33Z
+- blockers: none
+- unverified: CI on 2119ac4 not yet run; no core bake anywhere
