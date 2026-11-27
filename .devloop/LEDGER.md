@@ -438,6 +438,12 @@
 - blockers: main CI run on 8dfaf1876; #94 smoke in progress
 - unverified: app_detection red on main (expected but not yet shown: cargo stops before it on #91/#94)
 
+## 2026-11-21 19:22 · ec21f9b · blocked
+- objective: PS5 freezes: hold for Option B
+- done: freeze 8 at 19:19:32Z on boot b7ce6402 after 57 min, no caps, same signature (sda writes stuck behind the RTL9210, psi.io climbing, nothing logged); mios-k3s compaction 6 s before. Operator decision (native UI): leave mios-ps5 off until Option B; orchestrator told: no power-cycle ask, no watch
+- next: Option B arrives: lsusb 174c:2364 present and 0bda:9210 gone, lsusb -t uas at 5000M/10000M, then a 12-24 h soak; freeze-8 boot -1 read deferred until then
+- blockers: Option B delivery
+- unverified: stuck xHCI/bridge transfer as the mechanism
 ## 2026-11-27 03:30 · 8fff072 · done
 - objective: MiOS core image profile for cloud stores under 80 GB (operator decision 2026-11-21; ADR-0025 task #11)
 - done: MiOS PR #104 (draft, stacks on #96): SPIKE docs/research/spike-core-image-profile-cloud.md (measured: core closure 912 MiB download, +2.9 GB installed, base 2.5 GB compressed; est. 11-13 GB unpacked vs 57 GB free); SSOT [image].core_ref, [deployment.cloud].core_min_free_gb=25, [profiles.core].targets; names registry +3; build-core CI job bakes MIOS_PROFILES_DEFAULT=<floor> with no bound images, verifies the profile record (88-finalize writes MIOS_PROFILES_DEFAULT into /usr/lib/mios/version) and publishes/signs core_ref; mios-gate profile-integrity package-subset check (2 Rust negatives + drift-gate-negatives plant); bootstrap.sh preflight picks ref/core_ref/fails, records $STATE/image.ref, status names image+profile (test-cloud-overlay 47 pass, new two-sided test); generated artifacts regenerated (also what #96 left stale). -dev-loop PR #41: AGENTS.md environment section.
