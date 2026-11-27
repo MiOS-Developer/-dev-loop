@@ -437,3 +437,10 @@
 - next: 19:47Z: main baseline on 8dfaf1876, then merge #93, #94, #92, #91 where reds are a subset of main's; close #85
 - blockers: main CI run on 8dfaf1876; #94 smoke in progress
 - unverified: app_detection red on main (expected but not yet shown: cargo stops before it on #91/#94)
+
+## 2026-11-27 03:30 · 8fff072 · done
+- objective: MiOS core image profile for cloud stores under 80 GB (operator decision 2026-11-21; ADR-0025 task #11)
+- done: MiOS PR #104 (draft, stacks on #96): SPIKE docs/research/spike-core-image-profile-cloud.md (measured: core closure 912 MiB download, +2.9 GB installed, base 2.5 GB compressed; est. 11-13 GB unpacked vs 57 GB free); SSOT [image].core_ref, [deployment.cloud].core_min_free_gb=25, [profiles.core].targets; names registry +3; build-core CI job bakes MIOS_PROFILES_DEFAULT=<floor> with no bound images, verifies the profile record (88-finalize writes MIOS_PROFILES_DEFAULT into /usr/lib/mios/version) and publishes/signs core_ref; mios-gate profile-integrity package-subset check (2 Rust negatives + drift-gate-negatives plant); bootstrap.sh preflight picks ref/core_ref/fails, records $STATE/image.ref, status names image+profile (test-cloud-overlay 47 pass, new two-sided test); generated artifacts regenerated (also what #96 left stale). -dev-loop PR #41: AGENTS.md environment section.
+- next: operator reviews/merges #104 after #96; first build-core run on main measures the real core image size -> replace core_min_free_gb=25; follow-ups in the SPIKE: profile-aware _check_critical_packages, ADR-0025 Q1 base, rpmfusion rawhide names
+- blockers: none; Claude GitHub App not installed on either repo so PR events do not wake this session
+- unverified: no core bake has ever run; the 25 GB threshold is an estimate from measured parts; full 98-drift-checks vs clean worktree differs only in already-red legibility ratchet numbers (+56 shell lines, +1 doc, +1 tracked file); one pre-existing test-cloud-overlay failure (/usr/bin/mios-toml-get) and 3 pre-existing image-equivalence failures reproduce on the clean tree
