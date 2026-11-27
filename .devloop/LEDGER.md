@@ -444,3 +444,10 @@
 - next: operator reviews/merges #104 after #96; first build-core run on main measures the real core image size -> replace core_min_free_gb=25; follow-ups in the SPIKE: profile-aware _check_critical_packages, ADR-0025 Q1 base, rpmfusion rawhide names
 - blockers: none; Claude GitHub App not installed on either repo so PR events do not wake this session
 - unverified: no core bake has ever run; the 25 GB threshold is an estimate from measured parts; full 98-drift-checks vs clean worktree differs only in already-red legibility ratchet numbers (+56 shell lines, +1 doc, +1 tracked file); one pre-existing test-cloud-overlay failure (/usr/bin/mios-toml-get) and 3 pre-existing image-equivalence failures reproduce on the clean tree
+
+## 2026-11-27 03:42 · 5c01f16 · done
+- objective: MiOS #104 follow-up: merge main 74ddb51, re-render projections, add the build-core job that a hook had silently refused, retarget base to main
+- done: 82055d4 merge (main's side of generated files) + 35ef26e (build-core job inserted from a script, 13 steps parse; ROADMAP/manifest/metadata/manual-corpus re-rendered on the merged tree, sync fixed point); re-run on merged tree: mios-gate profiles 6 pass, profile-integrity clean, negative passed, cloud-script tests 7 pass, check_manual_ledger/check_globals_generated/check_llms_txt pass; #104 base -> main; PR description corrected; Monitor informed
+- next: mios-ci on #104 head 35ef26e; lease holder lands #96 then #104; first build-core run measures the core image
+- blockers: none
+- unverified: no core bake has run; CI on 35ef26e not yet observed
