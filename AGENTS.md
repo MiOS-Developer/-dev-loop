@@ -193,9 +193,17 @@ the cloud-session projection -- builds those same bytes. The Ubuntu variant was 
   datastore; `check_db_seed_coverage` requires every SSOT section seeded). Every MiOS repo carries
   the same devcontainer definition, byte-identical and gated, buildable from its own root -- no
   sibling-checkout pointer (restored 2026-09-26: MiOS#38, mios-bootstrap#10, and this repo's
-  mirror; the Ubuntu variant stays removed). The hand-authored
-  `[packages.devcontainer]` list and `FEDORA_PACKAGES` in `cloud-fedora-setup.sh` are interim and
-  must give way to the core profile of the real pipeline. Design: task #11 (SPIKE in flight).
+  mirror; the Ubuntu variant stays removed). The core profile of the
+  real pipeline now exists (operator decision 2026-11-21; MiOS
+  `docs/research/spike-core-image-profile-cloud.md`): `mios.toml [profiles.core]` baked by the same
+  `Containerfile`/`automation` run with `MIOS_PROFILES_DEFAULT=core` and no bound images, published by
+  CI's `build-core` job as `[image].core_ref`, its package set gated as a subset of the full image's
+  (`mios-gate profile-integrity`). A cloud session gets it through
+  `.devcontainer/cloud-shell/bootstrap.sh preflight`: a container store under
+  `[deployment.cloud].min_free_gb` (80 GB) but at or above `core_min_free_gb` picks `core_ref`, records
+  the choice, and `mios-dev status` names the image and profile a session runs. The hand-authored
+  `[packages.devcontainer]` list and `FEDORA_PACKAGES` in `cloud-fedora-setup.sh` are still interim and
+  must give way to that profile (measured 2026-11-21: `devcontainer` adds 8 RPMs / 110 MB over core).
   Details: `references/environment.md` § Fedora in a Claude Code *cloud environment*.
 - **In a cloud session, a detached job does not outlive the container.** `job.py spawn` survives
   the monitor's turn, but not the container, and an idle session's container is reclaimed.
